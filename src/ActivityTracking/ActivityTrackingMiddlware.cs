@@ -10,9 +10,8 @@ namespace ActivityTracking
 {
     public class ActivityTrackingMiddlware
     {
-        private RequestDelegate _next;
-        private HttpMethodOverrideOptions _options;
-        private DiagnosticSource httpListener = new DiagnosticListener("");
+        private readonly RequestDelegate _next;
+        private readonly DiagnosticSource _httpListener = new DiagnosticListener("AspNetCoreActivityTracking");
 
         public ActivityTrackingMiddlware(RequestDelegate next)
         {
@@ -25,31 +24,44 @@ namespace ActivityTracking
 
         public async Task Invoke(HttpContext context)
         {
-            if (httpListener.IsEnabled("Http_In"))
+            if (_httpListener.IsEnabled("Http_In"))
             {
                 Activity activity = new Activity("Http_In");
                 activity.SetStartTime(DateTime.UtcNow);
                 //add tags, baggage, etc.
-                activity.SetParentId(context.Request.Headers["x-ms-request-id"]);
+                activity.SetParentId(context.Request.Headers["request-id"]);
                 foreach (var header in context.Request.Headers)
                 {
-
-                    if (header.Key.StartsWith("x-baggage-"))
-                    activity.AddBaggage(header.Key, header.Value);
+                    if (header.Key.StartsWith("baggage-"))
+                    {
+                        activity.AddBaggage(header.Key, header.Value);
+                    }
                 }
 
-                httpListener.StartActivity(activity, context);
+                var shouldStart = _httpListener.IsEnabled("Http_In", activity, context);
+                if (shouldStart)
+                {
+                    _httpListener.StartActivity(activity, context);
+                }
+
                 try
                 {
                     await _next(context);
                 }
                 finally
                 {
-                    var stopTime = DateTime.UtcNow;
-                    activity.SetEndTime(stopTime);
-                    //stop activity
-                    httpListener.StopActivity(activity, stopTime);
+                    if (shouldStart)
+                    {
+                        var stopTime = DateTime.UtcNow;
+                        activity.SetEndTime(stopTime);
+                        //stop activity
+                        _httpListener.StopActivity(activity, stopTime);
+                    }
                 }
+            }
+            else
+            {
+                await _next(context);
             }
         }
     }
