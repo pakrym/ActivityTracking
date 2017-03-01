@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace ActivityTracking
 {
@@ -32,6 +33,17 @@ namespace ActivityTracking
             {
                 await context.Response.WriteAsync("Hello World!");
             });
+
+			var logger = loggerFactory.CreateLogger("Listener");
+			DiagnosticListener.AllListeners.Subscribe(delegate (DiagnosticListener listener) {
+				if (listener.Name == "Microsoft.AspNetCore")
+				{
+					listener.Subscribe(delegate (KeyValuePair<string, object> value)
+					{
+						logger.LogInformation($"Event: {value.Key}, {Activity.Current.OperationName}, {Activity.Current.Id} ");
+					});
+				}
+			});
         }
     }
 }

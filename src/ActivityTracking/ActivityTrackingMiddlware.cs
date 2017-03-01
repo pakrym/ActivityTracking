@@ -11,9 +11,11 @@ namespace ActivityTracking
     public class ActivityTrackingMiddlware
     {
         private readonly RequestDelegate _next;
-        private readonly DiagnosticSource _httpListener = new DiagnosticListener("AspNetCoreActivityTracking");
+        private readonly DiagnosticListener _httpListener = new DiagnosticListener("Microsoft.AdpNetCore");
+		private const string ActivityName = "Microsoft.AspNetCore.Activity";
+		private const string ActivityStartName = "Microsoft.AspNetCore.Activity.Start";
 
-        public ActivityTrackingMiddlware(RequestDelegate next)
+		public ActivityTrackingMiddlware(RequestDelegate next)
         {
             if (next == null)
             {
@@ -24,10 +26,12 @@ namespace ActivityTracking
 
         public async Task Invoke(HttpContext context)
         {
-            if (_httpListener.IsEnabled("Http_In"))
-            {
-                Activity activity = new Activity("Http_In");
-                activity.SetStartTime(DateTime.UtcNow);
+			Activity activity = null;
+			if ( _httpListener.IsEnabled() &&  //quick check that someone is listening
+				 _httpListener.IsEnabled(ActivityName)) //someone listening to activity events
+			{
+                activity = new Activity(ActivityName);
+
                 //add tags, baggage, etc.
                 activity.SetParentId(context.Request.Headers["request-id"]);
                 foreach (var header in context.Request.Headers)
@@ -37,32 +41,35 @@ namespace ActivityTracking
                         activity.AddBaggage(header.Key, header.Value);
                     }
                 }
-
-                var shouldStart = _httpListener.IsEnabled("Http_In", activity, context);
-                if (shouldStart)
-                {
-                    _httpListener.StartActivity(activity, context);
-                }
-
-                try
-                {
-                    await _next(context);
-                }
-                finally
-                {
-                    if (shouldStart)
-                    {
-                        var stopTime = DateTime.UtcNow;
-                        activity.SetEndTime(stopTime);
-                        //stop activity
-                        _httpListener.StopActivity(activity, stopTime);
-                    }
-                }
+				
+				//before starting an activity, check that user wants this request to be instumented
+				if (_httpListener.IsEnabled(ActivityName, activity, context))
+				{
+					if (_httpListener.IsEnabled(ActivityStartName)) //allow Stop events only to reduce verbosity, but start activity anyway
+					{
+						//TODO: will we ever need to pass something else than the context? do we really need anonymous object?
+						_httpListener.StartActivity(activity, new { Context = context });
+					}
+					else
+					{
+						activity.Start();
+					}
+				}
             }
-            else
-            {
-                await _next(context);
-            }
-        }
-    }
+
+			Task next = _next(context);
+			try
+			{
+				await next.ConfigureAwait(false);
+			}
+			finally
+			{
+				if (activity != null)
+				{
+					activity.SetEndTime(DateTime.UtcNow);
+					_httpListener.StopActivity(activity, new { Context = context, Status = next.Status });
+				}
+			}
+		}
+	}
 }
