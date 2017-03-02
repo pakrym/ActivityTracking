@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -20,7 +18,7 @@ namespace ActivityTracking
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime appLifetime)
         {
             loggerFactory.AddConsole();
 
@@ -28,8 +26,10 @@ namespace ActivityTracking
             {
                 app.UseDeveloperExceptionPage();
             }
-            app.UseMiddleware<ActivityTrackingMiddlware>();
-            app.Run(async (context) =>
+			var instrumentation = AspNetDiagListener.Enable();
+			appLifetime?.ApplicationStopped.Register(() => instrumentation?.Dispose());
+
+			app.Run(async (context) =>
             {
                 await context.Response.WriteAsync("Hello World!");
             });
@@ -40,7 +40,8 @@ namespace ActivityTracking
 				{
 					listener.Subscribe(delegate (KeyValuePair<string, object> value)
 					{
-						logger.LogInformation($"Event: {value.Key}, {Activity.Current.OperationName}, {Activity.Current.Id} ");
+						if (Activity.Current != null)
+							logger.LogInformation($"Event: {value.Key}, {Activity.Current.OperationName}, {Activity.Current.Id} ");
 					});
 				}
 			});

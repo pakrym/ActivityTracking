@@ -1,17 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
+using System.Linq;
+using System.Net.Http.Headers;
 
 namespace ActivityTracking
 {
     public class ActivityTrackingMiddlware
     {
         private readonly RequestDelegate _next;
-        private readonly DiagnosticListener _httpListener = new DiagnosticListener("Microsoft.AdpNetCore");
+        private readonly DiagnosticListener _httpListener = new DiagnosticListener("Microsoft.AspNetCore");
 		private const string ActivityName = "Microsoft.AspNetCore.Activity";
 		private const string ActivityStartName = "Microsoft.AspNetCore.Activity.Start";
 
@@ -32,16 +32,26 @@ namespace ActivityTracking
 			{
                 activity = new Activity(ActivityName);
 
-                //add tags, baggage, etc.
-                activity.SetParentId(context.Request.Headers["request-id"]);
-                foreach (var header in context.Request.Headers)
-                {
-                    if (header.Key.StartsWith("baggage-"))
-                    {
-                        activity.AddBaggage(header.Key, header.Value);
-                    }
-                }
-				
+				//add tags, baggage, etc.
+				StringValues requestId;
+				if (context.Request.Headers.TryGetValue("Request-Id", out requestId))
+				{
+					activity.SetParentId(requestId.First());
+					StringValues baggage;
+					if (context.Request.Headers.TryGetValue("Correlation-Context", out baggage))
+					{
+						foreach (var item in baggage)
+						{
+							NameValueHeaderValue baggageItem;
+							if (NameValueHeaderValue.TryParse(item, out baggageItem))
+							{
+								activity.AddBaggage(baggageItem.Name, baggageItem.Value);
+							}
+						}
+					}
+				}
+
+			
 				//before starting an activity, check that user wants this request to be instumented
 				if (_httpListener.IsEnabled(ActivityName, activity, context))
 				{
