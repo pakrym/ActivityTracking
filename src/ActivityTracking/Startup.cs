@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using Microsoft.Extensions.DiagnosticAdapter;
+using System.Net.Http;
 
 namespace ActivityTracking
 {
@@ -26,25 +28,19 @@ namespace ActivityTracking
             {
                 app.UseDeveloperExceptionPage();
             }
-			var instrumentation = AspNetDiagListener.Enable();
-			appLifetime?.ApplicationStopped.Register(() => instrumentation?.Dispose());
+            //simulate ASP.NET Core Diagnostics
+            var instrumentation = AspNetDiagListener.Enable();
 
+            //enable Dependency tracking in AI
+            IDisposable dependencyInstr = Microsoft.ApplicationInsights.DependencyCollector.DependencyCollectorDiagnosticListener.Enable();
+            appLifetime?.ApplicationStopped.Register(() => {instrumentation?.Dispose(); dependencyInstr?.Dispose(); });
+
+            HttpClient hc = new HttpClient();
 			app.Run(async (context) =>
             {
+                await hc.GetAsync("http://localhost:3000");
                 await context.Response.WriteAsync("Hello World!");
             });
-
-			var logger = loggerFactory.CreateLogger("Listener");
-			DiagnosticListener.AllListeners.Subscribe(delegate (DiagnosticListener listener) {
-				if (listener.Name == "Microsoft.AspNetCore")
-				{
-					listener.Subscribe(delegate (KeyValuePair<string, object> value)
-					{
-						if (Activity.Current != null)
-							logger.LogInformation($"Event: {value.Key}, {Activity.Current.OperationName}, {Activity.Current.Id} ");
-					});
-				}
-			});
         }
     }
 }
