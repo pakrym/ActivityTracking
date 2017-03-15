@@ -12,10 +12,10 @@ namespace ActivityTracking
     {
         private readonly RequestDelegate _next;
         private readonly DiagnosticListener _httpListener = new DiagnosticListener("Microsoft.AspNetCore");
-		private const string ActivityName = "Microsoft.AspNetCore.Activity";
-		private const string ActivityStartName = "Microsoft.AspNetCore.Activity.Start";
+        private const string ActivityName = "Microsoft.AspNetCore.Activity";
+        private const string ActivityStartName = "Microsoft.AspNetCore.Activity.Start";
 
-		public ActivityTrackingMiddlware(RequestDelegate next)
+        public ActivityTrackingMiddlware(RequestDelegate next)
         {
             if (next == null)
             {
@@ -26,9 +26,9 @@ namespace ActivityTracking
 
         public async Task Invoke(HttpContext context)
         {
-			Activity activity = null;
-			if ( _httpListener.IsEnabled() &&  //quick check that someone is listening
-				 _httpListener.IsEnabled(ActivityName)) //someone listening to activity events, in Hosting, check for "Microsoft.AspNetCore.Hosting.EndRequest" instad of ActivityName
+            Activity activity = null;
+            if ( _httpListener.IsEnabled() &&  //quick check that someone is listening
+                 _httpListener.IsEnabled(ActivityName)) //someone listening to activity events, in Hosting, check for "Microsoft.AspNetCore.Hosting.EndRequest" instad of ActivityName
             {
                 activity = new Activity(ActivityName); // in Hosting use the same "Microsoft.AspNetCore.Activity" or something like that
 
@@ -90,15 +90,15 @@ namespace ActivityTracking
                 }
             }
 
-			Task next = _next(context);
-			try
-			{
-				await next.ConfigureAwait(false);
-			}
-			finally
-			{
-				if (activity != null)
-				{
+            Task next = _next(context);
+            try
+            {
+                await next.ConfigureAwait(false);
+            }
+            finally
+            {
+                if (activity != null)
+                {
                     //in Hosting, send Microsoft.AspNetCore.Hosting.EndRequest.
                     //in HostingApplication.DisposeContext you don't have Activity object created before
                     //you need to traverse to the top most activity with something like
@@ -118,8 +118,8 @@ namespace ActivityTracking
 
                     activity.SetEndTime(DateTime.UtcNow);
                     _httpListener.StopActivity(activity, new { httpContext = context, Status = next.Status });
-				}
-			}
-		}
-	}
+                }
+            }
+        }
+    }
 }
