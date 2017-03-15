@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.0.1" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.0.2-proto4" />
     <PackageReference Include="Microsoft.ApplicationInsights.DependencyCollector" Version="2.3.0-beta10-build1095" />
     <PackageReference Include="Microsoft.AspNetCore" Version="1.1.0-*" />
     <PackageReference Include="Microsoft.Extensions.DiagnosticAdapter" Version="1.1.0" />

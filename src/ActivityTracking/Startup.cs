@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using Microsoft.Extensions.DiagnosticAdapter;
 using System.Net.Http;
 
 namespace ActivityTracking
@@ -29,11 +25,10 @@ namespace ActivityTracking
                 app.UseDeveloperExceptionPage();
             }
             //simulate ASP.NET Core Diagnostics
-            var instrumentation = AspNetDiagListener.Enable();
+            app.UseMiddleware<ActivityTrackingMiddlware>();
 
             //enable Dependency tracking in AI
-            IDisposable dependencyInstr = Microsoft.ApplicationInsights.DependencyCollector.DependencyCollectorDiagnosticListener.Enable();
-            appLifetime?.ApplicationStopped.Register(() => {instrumentation?.Dispose(); dependencyInstr?.Dispose(); });
+            Microsoft.ApplicationInsights.DependencyCollector.DependencyCollectorDiagnosticListener.Enable();
 
             HttpClient hc = new HttpClient();
 			app.Run(async (context) =>
