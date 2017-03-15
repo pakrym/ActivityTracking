@@ -31,7 +31,7 @@ namespace ActivityTracking
             Microsoft.ApplicationInsights.DependencyCollector.DependencyCollectorDiagnosticListener.Enable();
 
             HttpClient hc = new HttpClient();
-			app.Run(async (context) =>
+            app.Run(async (context) =>
             {
                 await hc.GetAsync("http://localhost:3000");
                 await context.Response.WriteAsync("Hello World!");
